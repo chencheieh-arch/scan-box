@@ -185,24 +185,28 @@ let text=speakQueue.shift()
 let msg=new SpeechSynthesisUtterance(text)
 
 msg.voice=voice
-msg.rate=1.35
+msg.rate=1.5
+msg.pitch=1
+msg.volume=1   // 最大音量
 
 msg.onend=function(){
+
+// 再播放一次增加音量感
+let msg2=new SpeechSynthesisUtterance(text)
+msg2.voice=voice
+msg2.rate=1.5
+msg2.volume=1
+
+msg2.onend=function(){
 speaking=false
 speakNext()
 }
 
-speechSynthesis.speak(msg)
+speechSynthesis.speak(msg2)
 
 }
 
-function speakNumber(n){
-
-let text=CN[n] || n.toString()
-
-speakQueue.push(text)
-
-speakNext()
+speechSynthesis.speak(msg)
 
 }
 
@@ -212,8 +216,8 @@ function okBeep(){
 let osc=audioCtx.createOscillator()
 let gain=audioCtx.createGain()
 
-osc.frequency.value=1300
-gain.gain.value=2
+osc.frequency.value=1800
+gain.gain.value=3   // 音量放大
 
 osc.connect(gain)
 gain.connect(audioCtx.destination)
@@ -222,7 +226,7 @@ osc.start()
 
 gain.gain.exponentialRampToValueAtTime(
 0.00001,
-audioCtx.currentTime+0.12
+audioCtx.currentTime+0.15
 )
 
 }
@@ -425,3 +429,4 @@ div.innerHTML=t+"<br>"+div.innerHTML
 </body>
 
 </html>
+
