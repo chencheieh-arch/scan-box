@@ -2,426 +2,180 @@
 <html>
 
 <head>
-
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-
-<title>分箱掃描</title>
-
+<title>分箱掃描 超大聲版</title>
 <style>
-
 *{box-sizing:border-box;}
-
-body{
-font-family:Arial;
-background:#f2f2f2;
-margin:0;
-padding:10px;
-}
-
-.container{
-width:100%;
-max-width:500px;
-margin:auto;
-background:white;
-padding:15px;
-border-radius:12px;
-box-shadow:0 3px 10px rgba(0,0,0,0.1);
-}
-
-h2{
-text-align:center;
-font-size:24px;
-margin:10px 0 15px 0;
-}
-
-.box{
-font-size:22px;
-color:#007BFF;
-text-align:center;
-margin-bottom:10px;
-font-weight:bold;
-}
-
-.stats{
-display:flex;
-justify-content:space-between;
-font-size:16px;
-margin-bottom:10px;
-}
-
-.stat{
-background:#f7f7f7;
-padding:8px;
-border-radius:6px;
-flex:1;
-text-align:center;
-margin:2px;
-}
-
-input{
-width:100%;
-padding:20px;
-font-size:24px;
-margin:10px 0;
-text-align:center;
-border-radius:8px;
-border:1px solid #ccc;
-}
-
-input:focus{
-outline:none;
-border:2px solid #007BFF;
-}
-
-.log{
-font-size:14px;
-margin-top:10px;
-height:140px;
-overflow:auto;
-background:#f7f7f7;
-padding:10px;
-border-radius:8px;
-}
-
-.unlock{
-background:#007BFF;
-color:white;
-padding:12px;
-border-radius:8px;
-text-align:center;
-margin-bottom:10px;
-font-size:16px;
-}
-
+body{font-family:Arial;background:#f2f2f2;margin:0;padding:10px;}
+.container{width:100%;max-width:500px;margin:auto;background:white;padding:15px;border-radius:12px;box-shadow:0 3px 10px rgba(0,0,0,0.1);}
+h2{text-align:center;font-size:24px;margin:10px 0 15px 0;}
+.box{font-size:22px;color:#007BFF;text-align:center;margin-bottom:10px;font-weight:bold;}
+.stats{display:flex;justify-content:space-between;font-size:16px;margin-bottom:10px;}
+.stat{background:#f7f7f7;padding:8px;border-radius:6px;flex:1;text-align:center;margin:2px;}
+input{width:100%;padding:20px;font-size:24px;margin:10px 0;text-align:center;border-radius:8px;border:1px solid #ccc;}
+input:focus{outline:none;border:2px solid #007BFF;}
+.log{font-size:14px;margin-top:10px;height:140px;overflow:auto;background:#f7f7f7;padding:10px;border-radius:8px;}
+.unlock{background:#007BFF;color:white;padding:12px;border-radius:8px;text-align:center;margin-bottom:10px;font-size:16px;}
 </style>
-
 </head>
 
 <body>
 
 <div class="container">
 
-<div id="unlock" class="unlock">
-🔊 點擊畫面啟動語音
-</div>
+<div id="unlock" class="unlock">🔊 點擊畫面啟動語音</div>
 
 <h2>📦 分箱掃描</h2>
 
-<div class="box">
-目前箱號：<span id="box">未設定</span>
-</div>
+<div class="box">目前箱號：<span id="box">未設定</span></div>
 
 <div class="stats">
-
-<div class="stat">
-📦總掃描<br>
-<span id="total">0</span>
+<div class="stat">📦總掃描<br><span id="total">0</span></div>
+<div class="stat">📦本箱<br><span id="boxcount">0</span></div>
+<div class="stat">📶狀態<br><span id="net">ONLINE</span></div>
 </div>
 
-<div class="stat">
-📦本箱<br>
-<span id="boxcount">0</span>
-</div>
-
-<div class="stat">
-📶狀態<br>
-<span id="net">ONLINE</span>
-</div>
-
-</div>
-
-<input 
-id="scan"
-placeholder="掃描箱號或條碼"
-inputmode="latin"
-autocapitalize="off"
-autocorrect="off"
-spellcheck="false"
->
-
+<input id="scan" placeholder="掃描箱號或條碼" inputmode="latin" autocapitalize="off" autocorrect="off" spellcheck="false">
 <div class="log" id="log"></div>
 
 </div>
 
 <script>
-
 const API="https://script.google.com/macros/s/AKfycbwIB-OiN5ixB_p8Bl6WL_t5eJsQ0xBdDcLvgnyQSAxTwl-f9O1LlJfn57rNp0ah_GGCpg/exec"
-
-let currentBox=""
-let buffer=[]
-
-let totalCount=0
-let boxCount=0
-
-let scannedSet=new Set()
-
-let offline=JSON.parse(localStorage.getItem("offline")||"[]")
-
+let currentBox="", buffer=[], totalCount=0, boxCount=0, scannedSet=new Set(), offline=JSON.parse(localStorage.getItem("offline")||"[]")
 const scanInput=document.getElementById("scan")
 
-// ======================
-// 音效系統
-// ======================
-
-let audioCtx
-let voice
-let speakQueue=[]
-let speaking=false
-
+// 中文數字
 const CN=["零","一","二","三","四","五","六","七","八","九","十",
 "十一","十二","十三","十四","十五","十六","十七","十八","十九","二十",
 "二十一","二十二","二十三","二十四","二十五","二十六","二十七","二十八","二十九","三十"]
 
+// 音效與語音佇列
+let audioCtx, voice, speakQueue=[], speaking=false
+
 function speakNext(){
-
-if(speaking) return
-if(speakQueue.length===0) return
-
-speaking=true
-
-let text=speakQueue.shift()
-
-let msg=new SpeechSynthesisUtterance(text)
-
-msg.voice=voice
-msg.rate=1.35
-
-msg.onend=function(){
-speaking=false
-speakNext()
-}
-
-speechSynthesis.speak(msg)
-
+  if(speaking) return
+  if(speakQueue.length===0) return
+  speaking=true
+  let text=speakQueue.shift()
+  let msg=new SpeechSynthesisUtterance(text)
+  msg.voice=voice
+  msg.rate=1.35
+  msg.pitch=1
+  msg.volume=1.0 // 最大音量
+  msg.onend=function(){speaking=false; speakNext()}
+  speechSynthesis.speak(msg)
 }
 
 function speakNumber(n){
-
-let text=CN[n] || n.toString()
-
-speakQueue.push(text)
-
-speakNext()
-
+  let text=CN[n]||n.toString()
+  speakQueue.push(text)
+  speakNext()
 }
 
-// 成功音
+// 成功音（超大聲）
 function okBeep(){
-
-let osc=audioCtx.createOscillator()
-let gain=audioCtx.createGain()
-
-osc.frequency.value=1300
-gain.gain.value=2
-
-osc.connect(gain)
-gain.connect(audioCtx.destination)
-
-osc.start()
-
-gain.gain.exponentialRampToValueAtTime(
-0.00001,
-audioCtx.currentTime+0.12
-)
-
+  if(!audioCtx) return
+  let osc=audioCtx.createOscillator()
+  let gain=audioCtx.createGain()
+  osc.frequency.value=1500
+  gain.gain.value=5.0  // 超大聲
+  osc.connect(gain)
+  gain.connect(audioCtx.destination)
+  osc.start()
+  gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime+0.15)
 }
 
-// 錯誤音
+// 錯誤音（低音大聲）
 function errorBeep(){
-
-let osc=audioCtx.createOscillator()
-let gain=audioCtx.createGain()
-
-osc.frequency.value=180
-
-osc.connect(gain)
-gain.connect(audioCtx.destination)
-
-osc.start()
-
-gain.gain.exponentialRampToValueAtTime(
-0.00001,
-audioCtx.currentTime+0.5
-)
-
+  if(!audioCtx) return
+  let osc=audioCtx.createOscillator()
+  let gain=audioCtx.createGain()
+  osc.frequency.value=180
+  gain.gain.value=5.0 // 超大聲
+  osc.connect(gain)
+  gain.connect(audioCtx.destination)
+  osc.start()
+  gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime+0.5)
 }
 
-// 啟動音效 (手機必須)
+// 啟動音效 (手機/筆電必須點擊)
 document.getElementById("unlock").onclick=function(){
-
-audioCtx=new (window.AudioContext||window.webkitAudioContext)()
-
-let voices=speechSynthesis.getVoices()
-voice=voices.find(v=>v.lang.includes("zh")) || voices[0]
-
-document.getElementById("unlock").style.display="none"
-
+  audioCtx=new (window.AudioContext||window.webkitAudioContext)()
+  let voices=speechSynthesis.getVoices()
+  voice=voices.find(v=>v.lang.includes("zh")) || voices[0]
+  document.getElementById("unlock").style.display="none"
 }
-
-// ======================
-// 掃描
-// ======================
 
 // 初始焦點
 scanInput.focus()
+scanInput.addEventListener("blur",()=>setTimeout(()=>scanInput.focus(),100))
+setInterval(()=>{if(document.activeElement!==scanInput) scanInput.focus()},500)
 
-scanInput.addEventListener("blur",function(){
-setTimeout(()=>scanInput.focus(),100)
-})
-
-// 定時檢查焦點
-setInterval(function(){
-
-if(document.activeElement!==scanInput){
-scanInput.focus()
-}
-
-},500)
-
+// 掃描輸入
 scanInput.addEventListener("keypress",function(e){
-
 if(e.key==="Enter"){
-
-let code=this.value.trim()
-this.value=""
-
-// 箱號
-if(code.startsWith("DECK-") || code.startsWith("ENG-")){
-
-currentBox=code
-boxCount=0
-scannedSet.clear()
-
-document.getElementById("box").innerText=currentBox
-document.getElementById("boxcount").innerText=0
-
-log("📦 切換箱號 "+code)
-
-return
+  let code=this.value.trim(); this.value=""
+  if(code.startsWith("DECK-")||code.startsWith("ENG-")){
+    currentBox=code
+    boxCount=0
+    scannedSet.clear()
+    document.getElementById("box").innerText=currentBox
+    document.getElementById("boxcount").innerText=0
+    log("📦 切換箱號 "+code)
+    return
+  }
+  if(!currentBox){alert("請先掃描箱號"); return}
+  if(scannedSet.has(code)){log("⚠ 重複條碼 "+code); errorBeep(); return}
+  scannedSet.add(code)
+  buffer.push({barcode:code, box:currentBox})
+  totalCount++; boxCount++
+  document.getElementById("total").innerText=totalCount
+  document.getElementById("boxcount").innerText=boxCount
+  okBeep()
+  speakNumber(boxCount)
+  log("✔ 掃描 "+code)
+  if(buffer.length>=5) send()
 }
-
-if(!currentBox){
-alert("請先掃描箱號")
-return
-}
-
-// 重複
-if(scannedSet.has(code)){
-
-log("⚠ 重複條碼 "+code)
-errorBeep()
-
-return
-}
-
-scannedSet.add(code)
-
-buffer.push({
-barcode:code,
-box:currentBox
-})
-
-totalCount++
-boxCount++
-
-updateStats()
-
-log("✔ 掃描 "+code)
-
-// 成功音
-okBeep()
-
-// 語音報數
-speakNumber(boxCount)
-
-if(buffer.length>=5){
-send()
-}
-
-}
-
 })
 
 function updateStats(){
-
-document.getElementById("total").innerText=totalCount
-document.getElementById("boxcount").innerText=boxCount
-
+  document.getElementById("total").innerText=totalCount
+  document.getElementById("boxcount").innerText=boxCount
 }
 
-setInterval(function(){
-
-if(buffer.length>0){
-send()
-}
-
-},2000)
+setInterval(()=>{if(buffer.length>0) send()},2000)
 
 async function send(){
-
-let data=[...buffer]
-
-buffer=[]
-
-try{
-
-await fetch(API,{
-method:"POST",
-body:JSON.stringify(data)
-})
-
-document.getElementById("net").innerText="ONLINE"
-
-}catch(e){
-
-offline=offline.concat(data)
-localStorage.setItem("offline",JSON.stringify(offline))
-
-document.getElementById("net").innerText="OFFLINE"
-
-log("⚠ 離線暫存 "+data.length)
-
-}
-
+  let data=[...buffer]; buffer=[]
+  try{
+    await fetch(API,{method:"POST", body:JSON.stringify(data)})
+    document.getElementById("net").innerText="ONLINE"
+  }catch(e){
+    offline=offline.concat(data)
+    localStorage.setItem("offline",JSON.stringify(offline))
+    document.getElementById("net").innerText="OFFLINE"
+    log("⚠ 離線暫存 "+data.length)
+  }
 }
 
 setInterval(async function(){
-
-if(offline.length==0) return
-
-try{
-
-await fetch(API,{
-method:"POST",
-body:JSON.stringify(offline)
-})
-
-log("📶 補傳 "+offline.length)
-
-offline=[]
-localStorage.removeItem("offline")
-
-document.getElementById("net").innerText="ONLINE"
-
-}catch(e){
-
-document.getElementById("net").innerText="OFFLINE"
-
-}
-
+  if(offline.length==0) return
+  try{
+    await fetch(API,{method:"POST", body:JSON.stringify(offline)})
+    log("📶 補傳 "+offline.length)
+    offline=[]
+    localStorage.removeItem("offline")
+    document.getElementById("net").innerText="ONLINE"
+  }catch(e){
+    document.getElementById("net").innerText="OFFLINE"
+  }
 },5000)
 
-function log(t){
-
-let div=document.getElementById("log")
-
-div.innerHTML=t+"<br>"+div.innerHTML
-
-}
+function log(t){document.getElementById("log").innerHTML=t+"<br>"+document.getElementById("log").innerHTML}
 
 </script>
 
 </body>
-
 </html>
