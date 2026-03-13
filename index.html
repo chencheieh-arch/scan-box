@@ -84,6 +84,16 @@ padding:10px;
 border-radius:8px;
 }
 
+.unlock{
+background:#007BFF;
+color:white;
+padding:12px;
+border-radius:8px;
+text-align:center;
+margin-bottom:10px;
+font-size:16px;
+}
+
 </style>
 
 </head>
@@ -91,6 +101,10 @@ border-radius:8px;
 <body>
 
 <div class="container">
+
+<div id="unlock" class="unlock">
+🔊 點擊畫面啟動語音
+</div>
 
 <h2>📦 分箱掃描</h2>
 
@@ -146,10 +160,112 @@ let offline=JSON.parse(localStorage.getItem("offline")||"[]")
 
 const scanInput=document.getElementById("scan")
 
+// ======================
+// 音效系統
+// ======================
+
+let audioCtx
+let voice
+let speakQueue=[]
+let speaking=false
+
+const CN=["零","一","二","三","四","五","六","七","八","九","十",
+"十一","十二","十三","十四","十五","十六","十七","十八","十九","二十",
+"二十一","二十二","二十三","二十四","二十五","二十六","二十七","二十八","二十九","三十"]
+
+function speakNext(){
+
+if(speaking) return
+if(speakQueue.length===0) return
+
+speaking=true
+
+let text=speakQueue.shift()
+
+let msg=new SpeechSynthesisUtterance(text)
+
+msg.voice=voice
+msg.rate=1.35
+
+msg.onend=function(){
+speaking=false
+speakNext()
+}
+
+speechSynthesis.speak(msg)
+
+}
+
+function speakNumber(n){
+
+let text=CN[n] || n.toString()
+
+speakQueue.push(text)
+
+speakNext()
+
+}
+
+// 成功音
+function okBeep(){
+
+let osc=audioCtx.createOscillator()
+let gain=audioCtx.createGain()
+
+osc.frequency.value=1300
+gain.gain.value=2
+
+osc.connect(gain)
+gain.connect(audioCtx.destination)
+
+osc.start()
+
+gain.gain.exponentialRampToValueAtTime(
+0.00001,
+audioCtx.currentTime+0.12
+)
+
+}
+
+// 錯誤音
+function errorBeep(){
+
+let osc=audioCtx.createOscillator()
+let gain=audioCtx.createGain()
+
+osc.frequency.value=180
+
+osc.connect(gain)
+gain.connect(audioCtx.destination)
+
+osc.start()
+
+gain.gain.exponentialRampToValueAtTime(
+0.00001,
+audioCtx.currentTime+0.5
+)
+
+}
+
+// 啟動音效 (手機必須)
+document.getElementById("unlock").onclick=function(){
+
+audioCtx=new (window.AudioContext||window.webkitAudioContext)()
+
+let voices=speechSynthesis.getVoices()
+voice=voices.find(v=>v.lang.includes("zh")) || voices[0]
+
+document.getElementById("unlock").style.display="none"
+
+}
+
+// ======================
+// 掃描
+// ======================
+
 // 初始焦點
 scanInput.focus()
 
-// 失焦自動回焦點
 scanInput.addEventListener("blur",function(){
 setTimeout(()=>scanInput.focus(),100)
 })
@@ -163,14 +279,14 @@ scanInput.focus()
 
 },500)
 
-scanInput
-.addEventListener("keypress",function(e){
+scanInput.addEventListener("keypress",function(e){
 
 if(e.key==="Enter"){
 
 let code=this.value.trim()
 this.value=""
 
+// 箱號
 if(code.startsWith("DECK-") || code.startsWith("ENG-")){
 
 currentBox=code
@@ -190,8 +306,12 @@ alert("請先掃描箱號")
 return
 }
 
+// 重複
 if(scannedSet.has(code)){
+
 log("⚠ 重複條碼 "+code)
+errorBeep()
+
 return
 }
 
@@ -208,6 +328,12 @@ boxCount++
 updateStats()
 
 log("✔ 掃描 "+code)
+
+// 成功音
+okBeep()
+
+// 語音報數
+speakNumber(boxCount)
 
 if(buffer.length>=5){
 send()
