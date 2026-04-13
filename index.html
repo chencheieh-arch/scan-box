@@ -38,10 +38,9 @@
     <script>
         const API = "https://script.google.com/macros/s/AKfycbwIB-OiN5ixB_p8Bl6WL_t5eJsQ0xBdDcLvgnyQSAxTwl-f9O1LlJfn57rNp0ah_GGCpg/exec"
         
-        // 核心資料隊列：不論是在線還是離線，資料先存進這裡
         let queue = JSON.parse(localStorage.getItem("scanQueue") || "[]");
         let currentBox = "", totalCount = 0, boxCount = 0, scannedSet = new Set();
-        let isProcessing = false; // 上傳鎖定開關
+        let isProcessing = false; 
         const scanInput = document.getElementById("scan");
 
         const CN = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十",
@@ -107,22 +106,26 @@
 
         scanInput.addEventListener("keypress", function (e) {
             if (e.key === "Enter") {
-                let code = this.value.trim(); this.value = ""
-                if (code.startsWith("DECK-") || code.startsWith("ENG-")) {
-                    currentBox = code
+                let code = this.value.trim(); 
+                let upperCode = code.toUpperCase(); // 轉大寫進行比對
+                this.value = ""
+
+                // 新增 Large Item 判斷與原本的 DECK/ENG 判斷
+                if (upperCode.startsWith("DECK-") || upperCode.startsWith("ENG-") || upperCode === "LARGE ITEM") {
+                    // 如果掃描的是 "Large Item"，將顯示名稱改為 Single Item
+                    currentBox = (upperCode === "LARGE ITEM") ? "單件物品(大型物品)" : code;
                     boxCount = 0
                     scannedSet.clear()
                     document.getElementById("box").innerText = currentBox
                     document.getElementById("boxcount").innerText = 0
-                    log("📦 切換箱號 " + code)
+                    log("📦 切換箱號 " + currentBox)
                     return
                 }
+                
                 if (!currentBox) { alert("請先掃描箱號"); return }
                 if (scannedSet.has(code)) { log("⚠ 重複條碼 " + code); errorBeep(); return }
                 
                 scannedSet.add(code)
-                
-                // 1. 加入待傳送隊列
                 queue.push({ barcode: code, box: currentBox });
                 saveQueue();
 
@@ -133,40 +136,33 @@
                 speakNumber(boxCount)
                 log("✔ 掃描 " + code)
                 
-                // 2. 觸發處理隊列
                 processQueue();
             }
         })
 
-        // 儲存隊列到 localStorage 防止關閉視窗遺失
         function saveQueue() {
             localStorage.setItem("scanQueue", JSON.stringify(queue));
         }
 
-        // 核心：負責將隊列中的資料一批一批上傳
         async function processQueue() {
             if (isProcessing || queue.length === 0) return;
             isProcessing = true;
 
-            // 每次處理最多 10 筆，避免請求過大
             let batchSize = Math.min(queue.length, 10);
             let dataToSend = queue.slice(0, batchSize);
 
             try {
-                // 使用 fetch 的並發保護
-                const response = await fetch(API, {
+                await fetch(API, {
                     method: "POST",
-                    mode: "no-cors", // 配合 GAS 常用設定
+                    mode: "no-cors",
                     headers: { "Content-Type": "text/plain" },
                     body: JSON.stringify(dataToSend)
                 });
 
-                // 成功送達後，才從隊列中移除這幾筆
                 queue.splice(0, batchSize);
                 saveQueue();
                 document.getElementById("net").innerText = "ONLINE";
                 
-                // 如果隊列還有剩，遞迴繼續傳
                 isProcessing = false;
                 if (queue.length > 0) processQueue();
                 
@@ -174,11 +170,9 @@
                 console.error("傳送錯誤:", e);
                 document.getElementById("net").innerText = "OFFLINE";
                 isProcessing = false;
-                // 失敗了就不再遞迴，等下一次定時觸發
             }
         }
 
-        // 定時檢查隊列（處理離線後恢復連線的情況）
         setInterval(processQueue, 3000);
 
         function log(t) { document.getElementById("log").innerHTML = t + "<br>" + document.getElementById("log").innerHTML }
