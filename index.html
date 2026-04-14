@@ -4,44 +4,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-    <title>分箱掃描 超強效穩定版</title>
+    <title>分箱掃描 專業慶祝版</title>
     <style>
         * {box-sizing: border-box;}
         body {font-family: Arial; background: #f2f2f2; margin: 0; padding: 10px;}
-        .container {width: 100%; max-width: 500px; margin: auto; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);}
-        h2 {text-align: center; font-size: 24px; margin: 10px 0 15px 0;}
+        .container {width: 100%; max-width: 500px; margin: auto; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1); position: relative;}
+        h2 {text-align: center; font-size: 24px; margin: 10px 0 5px 0;}
+        
+        .monitor-panel {background: #2c3e50; color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between;}
+        .ship-config {flex: 1;}
+        .ship-config label {font-size: 11px; color: #bdc3c7; display: block; margin-bottom: 4px;}
+        .ship-input {background: rgba(255,255,255,0.1); border: 1px solid #7f8c8d; color: white; font-size: 18px; width: 90%; padding: 5px; border-radius: 4px; outline: none;}
+        .ship-input:focus {border-color: #f1c40f;}
+        .progress-box {text-align: center; border-left: 1px solid #7f8c8d; padding-left: 15px; min-width: 80px;}
+        .progress-val {font-size: 32px; font-weight: bold; color: #f1c40f; display: block; line-height: 1;}
+        .progress-label {font-size: 11px; margin-top: 5px; display: block;}
+
         .box {font-size: 22px; color: #007BFF; text-align: center; margin-bottom: 10px; font-weight: bold;}
         .stats {display: flex; justify-content: space-between; font-size: 16px; margin-bottom: 10px;}
         .stat {background: #f7f7f7; padding: 8px; border-radius: 6px; flex: 1; text-align: center; margin: 2px;}
-        input {width: 100%; padding: 20px; font-size: 24px; margin: 10px 0; text-align: center; border-radius: 8px; border: 1px solid #ccc;}
-        input:focus {outline: none; border: 2px solid #007BFF;}
-        .log {font-size: 14px; margin-top: 10px; height: 140px; overflow: auto; background: #f7f7f7; padding: 10px; border-radius: 8px;}
-        .unlock {background: #007BFF; color: white; padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 10px; font-size: 16px;}
+        input#scan {width: 100%; padding: 20px; font-size: 24px; margin: 10px 0; text-align: center; border-radius: 8px; border: 1px solid #ccc;}
+        input#scan:focus {outline: none; border: 2px solid #007BFF;}
+        .log {font-size: 14px; margin-top: 10px; height: 120px; overflow: auto; background: #f7f7f7; padding: 10px; border-radius: 8px;}
+        .unlock {background: #007BFF; color: white; padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 10px; font-size: 16px; cursor: pointer; font-weight: bold;}
+
+        /* 慶祝特效樣式 */
+        #celebration {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); color: white; z-index: 9999;
+            flex-direction: column; align-items: center; justify-content: center;
+            text-align: center; animation: fadeIn 0.5s;
+        }
+        .congrats-text { font-size: 40px; color: #f1c40f; font-weight: bold; margin-bottom: 20px; text-shadow: 0 0 20px #f1c40f; }
+        .thanks-text { font-size: 20px; line-height: 1.6; padding: 0 20px; }
+        .close-btn { margin-top: 30px; padding: 10px 30px; background: #e74c3c; color: white; border: none; border-radius: 50px; font-size: 18px; cursor: pointer; }
+        @keyframes fadeIn { from {opacity:0;} to {opacity:1;} }
     </style>
 </head>
 
 <body>
 
+    <div id="celebration">
+        <div class="congrats-text">🎊 恭喜完工 🎊</div>
+        <div class="thanks-text">感謝所有分箱人員的努力！<br>現場因您們的辛勞而順暢！<br>辛苦大家了！💪</div>
+        <button class="close-btn" onclick="document.getElementById('celebration').style.display='none'">收下感謝</button>
+    </div>
+
     <div class="container">
-        <div id="unlock" class="unlock">🔊 點擊畫面啟動語音</div>
+        <div id="unlock" class="unlock">🔊 點擊畫面啟動語音與同步</div>
+        
         <h2>📦 分箱掃描</h2>
+
+        <div class="monitor-panel">
+            <div class="ship-config">
+                <label>SHIP NAME / 船名 (點擊修改)</label>
+                <input type="text" id="shipName" class="ship-input" value="WH712" onchange="fetchProgress()">
+            </div>
+            <div class="progress-box">
+                <span id="pendingCount" class="progress-val">--</span>
+                <span class="progress-label">未分箱筆數</span>
+            </div>
+        </div>
+
         <div class="box">目前箱號：<span id="box">未設定</span></div>
+
         <div class="stats">
             <div class="stat">📦總掃描<br><span id="total">0</span></div>
             <div class="stat">📦本箱<br><span id="boxcount">0</span></div>
             <div class="stat">📶狀態<br><span id="net">ONLINE</span></div>
         </div>
+
         <input id="scan" placeholder="掃描箱號或條碼" inputmode="latin" autocapitalize="off" autocorrect="off" spellcheck="false">
         <div class="log" id="log"></div>
     </div>
 
     <script>
-        const API = "https://script.google.com/macros/s/AKfycbwIB-OiN5ixB_p8Bl6WL_t5eJsQ0xBdDcLvgnyQSAxTwl-f9O1LlJfn57rNp0ah_GGCpg/exec"
+        // *** 重要：請務必填入你的 API URL ***
+        const API = "https://script.google.com/macros/s/AKfycbxwfoDKs9N0OB5JzzdqoJn5W4d4h5OVbIbdQQ3Qi5ANVt99fO_xYpxvj3TlYbFpzKIyQA/exec"
         
         let queue = JSON.parse(localStorage.getItem("scanQueue") || "[]");
         let currentBox = "", totalCount = 0, boxCount = 0, scannedSet = new Set();
         let isProcessing = false; 
+        let lastCount = -1; 
         const scanInput = document.getElementById("scan");
+
+        // --- 進度抓取邏輯 ---
+        async function fetchProgress() {
+            let ship = document.getElementById("shipName").value;
+            if(!ship) return;
+            try {
+                const response = await fetch(`${API}?type=getProgress&ship=${encodeURIComponent(ship)}`);
+                const result = await response.text();
+                let displayVal = (result === "N/A" || result === "Sheet Error") ? "無資料" : result;
+                document.getElementById("pendingCount").innerText = displayVal;
+
+                let currentCount = parseInt(result);
+                // 只有在真的拿到數字時才比對
+                if (!isNaN(currentCount)) {
+                    if (lastCount > 0 && currentCount === 0) {
+                        showCelebration();
+                    }
+                    lastCount = currentCount;
+                }
+            } catch (e) {
+                console.error("抓取進度失敗", e);
+            }
+        }
+
+        function showCelebration() {
+            document.getElementById('celebration').style.display = 'flex';
+            okBeep();
+            setTimeout(okBeep, 200);
+            speakQueue.push("恭喜完成！感謝所有分箱人員的辛勞，大家辛苦了！");
+            speakNext();
+        }
+
+        // 定時更新（背景同步）
+        setInterval(fetchProgress, 30000);
 
         const CN = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十",
             "十一", "十二", "十三", "十四", "十五", "十六", "十七", "十八", "十九", "二十",
@@ -56,7 +135,7 @@
             let text = speakQueue.shift()
             let msg = new SpeechSynthesisUtterance(text)
             msg.voice = voice
-            msg.rate = 1.35
+            msg.rate = 1.2 
             msg.pitch = 1
             msg.volume = 1.0
             msg.onend = function () { speaking = false; speakNext() }
@@ -98,22 +177,27 @@
             let voices = speechSynthesis.getVoices()
             voice = voices.find(v => v.lang.includes("zh")) || voices[0]
             document.getElementById("unlock").style.display = "none"
+            fetchProgress(); 
         }
 
         scanInput.focus()
-        scanInput.addEventListener("blur", () => setTimeout(() => scanInput.focus(), 100))
-        setInterval(() => { if (document.activeElement !== scanInput) scanInput.focus() }, 500)
+        scanInput.addEventListener("blur", () => {
+            setTimeout(() => {
+                if (document.activeElement.id !== 'shipName') scanInput.focus()
+            }, 1000)
+        })
+        setInterval(() => { 
+            if (document.activeElement !== scanInput && document.activeElement.id !== 'shipName') scanInput.focus() 
+        }, 2000)
 
         scanInput.addEventListener("keypress", function (e) {
             if (e.key === "Enter") {
                 let code = this.value.trim(); 
-                let upperCode = code.toUpperCase(); // 轉大寫進行比對
+                let upperCode = code.toUpperCase(); 
                 this.value = ""
 
-                // 新增 Large Item 判斷與原本的 DECK/ENG 判斷
                 if (upperCode.startsWith("DECK-") || upperCode.startsWith("ENG-") || upperCode === "LARGE ITEM") {
-                    // 如果掃描的是 "Large Item"，將顯示名稱改為 Single Item
-                    currentBox = (upperCode === "LARGE ITEM") ? "單件物品(大型物品)" : code;
+                    currentBox = (upperCode === "LARGE ITEM") ? "Single Item" : code;
                     boxCount = 0
                     scannedSet.clear()
                     document.getElementById("box").innerText = currentBox
@@ -136,6 +220,7 @@
                 speakNumber(boxCount)
                 log("✔ 掃描 " + code)
                 
+                // 核心改動：掃描成功後，不等 30 秒，直接觸發一次上傳與進度檢查
                 processQueue();
             }
         })
@@ -147,36 +232,34 @@
         async function processQueue() {
             if (isProcessing || queue.length === 0) return;
             isProcessing = true;
-
             let batchSize = Math.min(queue.length, 10);
             let dataToSend = queue.slice(0, batchSize);
-
             try {
+                // 上傳資料
                 await fetch(API, {
                     method: "POST",
                     mode: "no-cors",
                     headers: { "Content-Type": "text/plain" },
                     body: JSON.stringify(dataToSend)
                 });
-
                 queue.splice(0, batchSize);
                 saveQueue();
                 document.getElementById("net").innerText = "ONLINE";
-                
                 isProcessing = false;
-                if (queue.length > 0) processQueue();
                 
+                // *** 關鍵連動 ***
+                // 上傳成功後，延遲 1.5 秒抓取最新進度（給試算表一點時間更新公式）
+                setTimeout(fetchProgress, 1500);
+
+                if (queue.length > 0) processQueue();
             } catch (e) {
-                console.error("傳送錯誤:", e);
                 document.getElementById("net").innerText = "OFFLINE";
                 isProcessing = false;
             }
         }
 
         setInterval(processQueue, 3000);
-
         function log(t) { document.getElementById("log").innerHTML = t + "<br>" + document.getElementById("log").innerHTML }
-
     </script>
 </body>
 </html>
