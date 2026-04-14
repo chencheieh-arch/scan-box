@@ -197,7 +197,7 @@
                 this.value = ""
 
                 if (upperCode.startsWith("DECK-") || upperCode.startsWith("ENG-") || upperCode === "LARGE ITEM") {
-                    currentBox = (upperCode === "LARGE ITEM") ? "Single Item" : code;
+                    currentBox = (upperCode === "LARGE ITEM") ? "單件物品(大型物品)" : code;
                     boxCount = 0
                     scannedSet.clear()
                     document.getElementById("box").innerText = currentBox
